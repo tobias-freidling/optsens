@@ -1,4 +1,22 @@
 
+compute_eval_param <- function(y, d, xt, xp, z) {
+  ylm_mat <- cbind(y, d, z, xp, xt)
+  colnames(ylm_mat)[c(1,2)] <- c("y", "d")
+  if (!is.null(z)) colnames(ylm_mat)[3] <- "z"
+
+  dlm_mat <- cbind(d, z, xp, xt)
+  colnames(dlm_mat)[1] <- "d"
+  if (!is.null(z)) colnames(dlm_mat)[2] <- "z"
+
+  ylm <- lm("y ~ -1 + .", data = as.data.frame(ylm_mat))
+  dlm <- lm("d ~ -1 + .", data = as.data.frame(dlm_mat))
+  beta_ols <- as.vector(ylm$coefficients["d"])
+  sd_y_xzd <- sigma(ylm)
+  sd_d_xz <- sigma(dlm)
+
+  c(beta_ols, sd_y_xzd, sd_d_xz)
+}
+
 one_opt <- function(data, indices, bounds, grid_specs, indep_x, dep_x,
                     print_warning, eps, extreme_value) {
   ## data as matrix with labelled columns
@@ -17,23 +35,11 @@ one_opt <- function(data, indices, bounds, grid_specs, indep_x, dep_x,
                              grid_specs, FALSE,
                              print_warning, eps)
 
-  ## estimate ols and sds
-  ylm_mat <- cbind(y, d, z, xp, xt)
-  colnames(ylm_mat)[c(1,2)] <- c("y", "d")
-  if (!is.null(z)) colnames(ylm_mat)[3] <- "z"
-
-  dlm_mat <- cbind(d, z, xp, xt)
-  colnames(dlm_mat)[1] <- "d"
-  if (!is.null(z)) colnames(dlm_mat)[2] <- "z"
-
-  ylm <- lm("y ~ -1 + .", data = as.data.frame(ylm_mat))
-  dlm <- lm("d ~ -1 + .", data = as.data.frame(dlm_mat))
-  beta_ols <- as.vector(ylm$coefficients["d"])
-  sd_y_xzd <- sigma(ylm)
-  sd_d_xz <- sigma(dlm)
+  ## beta_ols, sd_y_xzd, sd_d_xz
+  eval_param <- compute_eval_param(y, d, xt, xp, z)
 
   eval_mat <- eval_on_grid(grid_list$a_seq, grid_list$b_mat,
-                           beta_ols, sd_y_xzd, sd_d_xz)
+                           eval_param[1], eval_param[2], eval_param[3])
 
   all_na <- all(is.na(eval_mat))
   ret <- if(all_na) c(NA, NA) else c(min(eval_mat, na.rm = TRUE),
