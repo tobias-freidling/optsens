@@ -1,62 +1,25 @@
-## Functions for R- and R^2-values
-## It's assumed that all data is centred before.
-proj <- function(a, weights){
-  ##a %*% solve(t(a) %*% a) %*% t(a)
-  if (is.null(weights)) {
-    ret <- a %*% MASS::ginv(t(a) %*% a, tol = 0) %*% t(a)
-  } else {
-    w <- diag(weights)
-    ret <- a %*% MASS::ginv(t(a) %*% w %*% a, tol = 0) %*%
-      t(a) %*% w
-  }
-  ret
-}
+## The data is assumed to be centred.
 
-r <- function(y, x, z = NULL, weights = NULL) {
-  if (!is.null(z)) {
-    z <- as.matrix(z)
-    pz <- proj(z, weights)
-    qz <- diag(ncol(pz)) - pz
-    y <- as.vector(qz %*% y)
-    x <- as.vector(qz %*% x)
-  }
-  if (!is.null(weights)) {
-    y <- sqrt(weights) * y
-    x <- sqrt(weights) * x
-  }
-  sum(x * y) / norm(x, "2") / norm(y, "2")
-}
 
-r2 <- function(y, x, z = NULL, weights = NULL) {
-  x <- as.matrix(x)
-  if (!is.null(z)) {
-    z <- as.matrix(z)
-    pz <- proj(z, weights)
-    qz <- diag(ncol(pz)) - pz
-    y <- as.vector(qz %*% y)
-    x <- qz %*% x
+r <- function(A, B, C = NULL, tol = 1e-07) {
+  if (!is.null(C)) {
+    z <- .Call(stats:::C_Cdqrls, C, cbind(A,B), tol, FALSE)
+    A <- as.vector(z$residuals[,1])
+    B <- as.vector(z$residuals[,2])
   }
-  ypx <- as.vector(proj(x, weights) %*% y)
-  if (!is.null(weights)) {
-    y <- sqrt(weights) * y
-    ypx <- sqrt(weights) * ypx
-  }
-  norm(ypx, "2")^2 / norm(y, "2")^2
+  sum(A * B) / norm(A, "2") / norm(B, "2")
 }
 
 
-compute_r2_se <- function(y, d, x, z, df, weights = NULL) {
-  p_xzd <- proj(cbind(x, z, d), weights)
-  p_xz <- proj(cbind(x, z), weights)
-  q_xzd <- diag(ncol(p_xzd)) - p_xzd
-  q_xz <- diag(ncol(p_xz)) - p_xz
 
-  y_xzd <- as.vector(q_xzd %*% y)
-  d_xz <- as.vector(q_xz %*% d)
-  se <- sd(y_xzd) / sd(d_xz) / sqrt(df)
-
-  y_xz <- as.vector(q_xz %*% y)
-  beta_ols <- cov(d_xz, y_xz) / var(d_xz)
-
-  c(beta_ols, se)
+r2 <- function(A, B, C = NULL, tol = 1e-07) {
+  B <- as.matrix(B)
+  if (!is.null(C)) {
+    C <- as.matrix(C)
+    z <- .Call(stats:::C_Cdqrls, C, cbind(A,B), tol, FALSE)
+    A <- as.vector(z$residuals[,1])
+    B <- as.matrix(z$residuals[,2:(dim(B)[2]+1)])
+  }
+  z <- .Call(stats:::C_Cdqrls, B, A, tol, FALSE)
+  1 - norm(as.vector(z$residuals), "2")^2 / norm(A, "2")^2
 }

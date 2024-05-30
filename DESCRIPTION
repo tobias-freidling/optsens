@@ -1,12 +1,25 @@
-Package: limosa
-Title: What the Package Does (One Line, Title Case)
+Package: limosa.beta
+Title: Sensitivity Analysis for Regression and IV Models
 Version: 0.0.0.9000
-Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+Authors@R:
+    person("Tobias", "Freidling", , "taf40@cam.ac.uk", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0003-0724-4297"))
+Description: Optimization-based framework to conduct sensitivity analysis
+    for the identification assumptions of linear regression and
+    instrumental variable models.  Users provide the data and sspecify
+    direct or comparative bounds on the influence of an unmeasured
+    confounder on observed variables. The package estimates the resulting
+    partially identified region, provides uncertainty quantification and
+    visualizations of the results.
+License: MIT + file LICENSE
+Imports:
+    boot,
+    ggplot2,
+    ggrepel,
+    ivmodel,
+    MASS,
+    metR,
+    stats
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3

@@ -1,10 +1,6 @@
-## method that generates the sensana object
-## don't supply iv or lm model, just the data
-## helper function to compute IV and regression estimates
-## plus confidence intervals
-## return sensana object
 
-## required y, d, z vectors; x data.frame
+## Creating sensana object
+#' @export
 sensana <- function(y, d, indep_x, dep_x, x = NULL, z = NULL,
                     intercept = TRUE, alpha = 0.05) {
   cl <- match.call()
@@ -15,14 +11,19 @@ sensana <- function(y, d, indep_x, dep_x, x = NULL, z = NULL,
   if (!is.null(z)) lm_df <- cbind(lm_df, z)
   formula <- if(intercept) "y ~ ." else "y ~ -1 + ."
 
-  model_ols <- lm(formula, data = lm_df)
+  model_ols <- stats::lm(formula, data = lm_df)
   beta_ols <- as.vector(model_ols$coefficients["d"])
-  confint_ols <- as.vector(confint(model_ols, "d", level = 1 - alpha))
+  confint_ols <- as.vector(stats::confint(model_ols, "d", level = 1 - alpha))
 
   ## IV estimates
   if (!is.null(z)) {
-    model_iv <- ivmodel::ivmodel(Y = y, D = d, X = x, Z = as.matrix(z),
-                                 intercept = intercept, alpha = alpha, k = 1)
+    if (is.null(x)) {
+      model_iv <- ivmodel::ivmodel(Y = y, D = d, Z = as.matrix(z),
+                                   intercept = intercept, alpha = alpha, k = 1)
+    } else {
+      model_iv <- ivmodel::ivmodel(Y = y, D = d, X = x, Z = as.matrix(z),
+                                   intercept = intercept, alpha = alpha, k = 1)
+    }
     kclass <- ivmodel::KClass(model_iv, k = 1, alpha = alpha)
     beta_iv <- as.vector(kclass$point.est)
     confint_iv <- as.vector(kclass$ci)
@@ -36,17 +37,22 @@ sensana <- function(y, d, indep_x, dep_x, x = NULL, z = NULL,
   yc <- as.vector(scale(y, scale = FALSE))
   dc <- as.vector(scale(d, scale = FALSE))
   zc <- if(is.null(z)) NULL else as.vector(scale(z, scale = FALSE))
+
   if (is.null(x) || is.null(dep_x)) {
     xtc <- NULL
   } else {
-    xtc <- as.matrix(sapply(x[, dep_x],
-                            function(a) scale(a, scale = FALSE)))
+    xtc <- as.matrix(scale(x[, dep_x], scale = FALSE))
+    if (length(dep_x) == 1) {
+      colnames(xtc) <- dep_x
+    }
   }
   if (is.null(x) || is.null(indep_x)) {
     xpc <- NULL
   } else {
-    xpc <- as.matrix(sapply(x[, indep_x],
-                            function(a) scale(a, scale = FALSE)))
+    xpc <- as.matrix(scale(x[, indep_x], scale = FALSE))
+    if (length(indep_x) == 1) {
+      colnames(xpc) <- indep_x
+    }
   }
 
 

@@ -1,5 +1,6 @@
 
-
+## Computing and plotting R-contours
+#' @export
 r_contours <- function(sa, val_interest = 0,
                        comparison_ind = NULL,
                        mult_r2 = TRUE,
@@ -19,12 +20,7 @@ r_contours <- function(sa, val_interest = 0,
 
 
 
-
-
-
-
-
-
+#' @export
 r_contours_data <- function(sa, comparison_ind, mult_r2, comparison,
                             iv_lines, grid_specs, print_warning, eps) {
   list2env(sa, environment())
@@ -32,7 +28,6 @@ r_contours_data <- function(sa, comparison_ind, mult_r2, comparison,
   grid_list <- feasible_grid(y, d, xt, xp, z, bounds, grid_specs, TRUE,
                              print_warning, eps)
   list2env(grid_list, environment())
-  ## beta_ols, sd_y_xzd, sd_d_xz
   eval_param <- compute_eval_param(y, d, xt, xp, z)
   eval_mat <- eval_on_grid(a_seq, b_mat,
                            eval_param[1], eval_param[2], eval_param[3])
@@ -47,7 +42,6 @@ r_contours_data <- function(sa, comparison_ind, mult_r2, comparison,
   ytemp <- (b_mat[, 2:len_y] + b_mat[, 1:(len_y-1)]) / 2
   ymin <- cbind(2 * b_mat[, 1] - ytemp[, 1], ytemp)
   ymax <- cbind(ytemp, 2 * b_mat[, len_y] - ytemp[, len_y-1])
-
 
   df_plot <- data.frame(a = rep(a_seq, len_y),
                         b = as.vector(b_mat),
@@ -92,8 +86,6 @@ r_contours_data <- function(sa, comparison_ind, mult_r2, comparison,
         add_cp_y <- fac * r(y, xj, cbind(xxjc, d))
       }
 
-
-      ## Error catching
       if (abs(add_cp_x) >= 1 || abs(add_cp_y) >= 1) {
         stop(paste0("The multiplier ", m, " is too large ",
                     "for the covariate ", j, "."))
@@ -104,7 +96,6 @@ r_contours_data <- function(sa, comparison_ind, mult_r2, comparison,
       cp_y <- c(cp_y, add_cp_y)
       cp_labels <- c(cp_labels, add_label)
     }
-    ## Bootstrapped standard errors not included yet.
   }
   df_cp <- data.frame(cp_x = cp_x, cp_y = cp_y,
                       cp_label = cp_labels)
@@ -140,13 +131,7 @@ r_contours_data <- function(sa, comparison_ind, mult_r2, comparison,
 
 
 
-
-
-
-
-
-
-
+#' @export
 r_contours_plot <- function(plot_list, val_interest) {
 
   list2env(plot_list, environment())
@@ -195,7 +180,6 @@ r_contours_plot <- function(plot_list, val_interest) {
   }
 
   ## Comparison points
-
   if (dim(df_cp)[1] > 0) {
     list2env(plot_list$df_cp, environment())
     pl <- pl +
@@ -211,7 +195,6 @@ r_contours_plot <- function(plot_list, val_interest) {
   xlab <- expression("R"["D~U|X,Z"])
   ylab <- expression("R"["Y~U|X,Z,D"])
   title <- "R-sensitivity contours"
-
 
   pl <- pl +
     ggplot2::labs(x = xlab, y = ylab, title = title) +

@@ -1,4 +1,6 @@
 
+## Computing and plotting b-contours
+#' @export
 b_contours <- function(sa, pir_lower, bound1, range1, bound2, range2,
                        val_interest = 0, grid_specs_b = list(num1 = 20, num2 =20),
                        grid_specs = list(num_x = 100, num_y = 100, num_z = 100),
@@ -18,7 +20,7 @@ b_contours <- function(sa, pir_lower, bound1, range1, bound2, range2,
 
 
 
-
+#' @export
 b_contours_data <- function(sa, pir_lower, bound1, range1, bound2, range2,
                             grid_specs_b, grid_specs, print_warning, eps){
   list2env(sa, environment())
@@ -51,7 +53,7 @@ b_contours_data <- function(sa, pir_lower, bound1, range1, bound2, range2,
 }
 
 
-
+#' @export
 b_contours_plot <- function(data, val_interest, pir_lower,
                             b1_sa, b2_sa, range1, range2,
                             xlab, ylab) {
@@ -69,16 +71,13 @@ b_contours_plot <- function(data, val_interest, pir_lower,
     b[b != val_interest]
   }
 
-
   pl <- ggplot2::ggplot(data, ggplot2::aes(x, y)) +
     metR::geom_contour_fill(ggplot2::aes(z = z, fill = stat(level)),
-                            ##binwidth = NULL,
                             breaks = make_breaks,
                             show.legend = FALSE,
                             na.rm = TRUE) +
     metR::geom_contour2(ggplot2::aes(z = z,
                             label = stat(level)),
-                        ##binwidth = NULL,
                         breaks = make_breaks_ex,
                         col = "black",
                         label_size = 3,
@@ -90,7 +89,6 @@ b_contours_plot <- function(data, val_interest, pir_lower,
                         col = "black",
                         na.rm = TRUE) +
     metR::scale_fill_divergent_discretised(midpoint = val_interest) +
-    ## scale_fill_discretised(low = "#d41159", high = "#ffdc00") +
     ggplot2::geom_point(data = data.frame(x = b1_sa,
                                           y = b2_sa),
                         mapping = ggplot2::aes(x, y), col = "black") +
