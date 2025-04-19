@@ -4,10 +4,18 @@
 b_contours <- function(sa, pir_lower, bound1, range1, bound2, range2,
                        val_interest = 0, grid_specs_b = list(num1 = 20, num2 =20),
                        grid_specs = list(num_x = 100, num_y = 100, num_z = 100),
-                       print_warning = FALSE, eps = 0.001) {
+                       eps = 0.001, bw = FALSE) {
+  
+  if (!is.numeric(val_interest) || length(val_interest) != 1) {
+    stop("'val_interest' must be a number.")
+  }
+  
+  if (!any(bw %in% c(TRUE, FALSE))) {
+    stop("'bw' must be a boolean value.")
+  }
 
   data <- b_contours_data(sa, pir_lower, bound1, range1, bound2, range2,
-                          grid_specs_b, grid_specs, print_warning, eps)
+                          grid_specs_b, grid_specs, eps)
 
   xlab <- sa$bounds[bound1, "arrow"]
   ylab <- sa$bounds[bound2, "arrow"]
@@ -15,14 +23,18 @@ b_contours <- function(sa, pir_lower, bound1, range1, bound2, range2,
   b2_sa <- sa$bounds[bound2, "b"]
 
   b_contours_plot(data, val_interest, pir_lower, b1_sa, b2_sa,
-                  range1, range2, xlab, ylab)
+                  range1, range2, xlab, ylab, bw)
 }
 
 
 
 #' @export
 b_contours_data <- function(sa, pir_lower, bound1, range1, bound2, range2,
-                            grid_specs_b, grid_specs, print_warning, eps){
+                            grid_specs_b, grid_specs, eps){
+  
+  check_b_contours_data(sa, pir_lower, bound1, range1, bound2, range2,
+                        grid_specs_b, grid_specs, eps)
+  
   list2env(sa, environment())
 
   b1_seq <- seq(range1[1], range1[2], length = grid_specs_b$num1)
@@ -42,8 +54,8 @@ b_contours_data <- function(sa, pir_lower, bound1, range1, bound2, range2,
     bounds_b1b2 <- bounds
     bounds_b1b2[bound1, "b"] <- b1
     bounds_b1b2[bound2, "b"] <- b2
-    pir <- one_opt(data_mat, indices, bounds_b1b2, grid_specs, indep_x, dep_x,
-                   print_warning, eps, NULL)
+    
+    pir <- one_opt(data_mat, indices, bounds_b1b2, grid_specs, indep_x, dep_x, eps)
     if (pir_lower) pir[1] else pir[2]
   }
 
@@ -53,10 +65,11 @@ b_contours_data <- function(sa, pir_lower, bound1, range1, bound2, range2,
 }
 
 
-#' @export
+
+
 b_contours_plot <- function(data, val_interest, pir_lower,
                             b1_sa, b2_sa, range1, range2,
-                            xlab, ylab) {
+                            xlab, ylab, bw) {
 
   title <- "b-sensitivity contours: "
   title <- if (pir_lower) paste0(title, "lower point PIR") else paste0(title, "upper point PIR")
@@ -72,23 +85,29 @@ b_contours_plot <- function(data, val_interest, pir_lower,
   }
 
   pl <- ggplot2::ggplot(data, ggplot2::aes(x, y)) +
-    metR::geom_contour_fill(ggplot2::aes(z = z, fill = stat(level)),
+    metR::geom_contour_fill(ggplot2::aes(z = z, fill = after_stat(level)),
                             breaks = make_breaks,
-                            show.legend = FALSE,
-                            na.rm = TRUE) +
+                            show.legend = FALSE) +
     metR::geom_contour2(ggplot2::aes(z = z,
-                            label = stat(level)),
+                            label = after_stat(level)),
                         breaks = make_breaks_ex,
                         col = "black",
                         label_size = 3,
                         size = 0.1,
                         na.rm = TRUE) +
-    metR::geom_contour2(ggplot2::aes(z = z, label = stat(level)),
+    metR::geom_contour2(ggplot2::aes(z = z, label = after_stat(level)),
                         breaks = val_interest,
-                        size = 0.8,
+                        linewidth = 0.8,
                         col = "black",
-                        na.rm = TRUE) +
-    metR::scale_fill_divergent_discretised(midpoint = val_interest) +
+                        na.rm = TRUE)
+  
+  if (bw) {
+    pl <- pl + metR::scale_fill_discretised(low = "#5A5A5A", high = "#F5F5F5")
+  } else {
+    pl <- pl + metR::scale_fill_divergent_discretised(midpoint = val_interest)
+  }
+  
+  pl <- pl +
     ggplot2::geom_point(data = data.frame(x = b1_sa,
                                           y = b2_sa),
                         mapping = ggplot2::aes(x, y), col = "black") +

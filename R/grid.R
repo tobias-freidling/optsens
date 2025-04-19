@@ -1,174 +1,214 @@
 
-## Helper function creating the constraint functions
-## Note: the abbreviations, e.g. a, b, d..., may not match the notation
-## in the paper
-constraint_functions <- function(y, d, xt, xp, z, bounds) {
+
+ols_constraint_functions <- function(y, d, xt, xp, z, bounds) {
+  ## hb
   xtz <- cbind(xt, z)
-  xtxp <- cbind(xt, xp)
-
-  c3 <- r(y, d, cbind(xtz, xp))
-  ## returns b
-  eq_b <- function(a, g) (g - c3 * a) / sqrt(1-c3^2) / sqrt(1-a^2)
-  ## returns g (c5, c6 are R^2)
-  eq_g <- function(a, h, c4, c5, c6) {
-    (h * sqrt(1-c4^2) * sqrt(1 - a^2 * (1-c5))
-     + c4 * sqrt(1-c5) * a^2) / sqrt(1-c6)
+  c1 <- r(y, d, cbind(xtz, xp))
+  hb <- function(a, dpar) (dpar - c1 * a) / sqrt(1-c1^2) / sqrt(1-a^2)
+  ## dpar instead of d to avoid ambiguity
+  
+  ## hd
+  hd <- function(a, e, c2, c3, c4) {
+    (e * sqrt(1-c2^2) * sqrt(1 - a^2 * (1-c3^2))
+     + c2 * sqrt(1-c3^2) * a^2) / sqrt(1-c4^2)
   }
-
-  ## Function to compute comparative-d bounds on g and comparative ZY-bounds
-  c4 <- c5 <- c6 <- lb_h <- ub_h <- c()
-  cyz <- bzy <- c()
+  
+  
+  ## Computing constants
+  c2 <- c3 <- c4 <- lb_e <- ub_e <- c()
   for (i in seq_len(nrow(bounds))) {
     if (bounds[i, "arrow"] == "UY" &&
         bounds[i, "kind"] == "comparative-d") {
       I <- unlist(bounds[i, "I"])
       xpic <- xp[, setdiff(colnames(xp), I)]
       xxi <- if (is.null(I)) xtz else cbind(xtz, xp[, I])
-      c4 <- c(c4, r(y, d, xxi))
-      c5 <- c(c5, r2(d, xpic, xxi))
-      c6 <- c(c6, r2(y, xpic, xxi))
-      lb_h <- c(lb_h, bounds[i, "lb"])
-      ub_h <- c(ub_h, bounds[i, "ub"])
-    } else if (bounds[i, "arrow"] == "ZY" &&
-               bounds[i, "kind"] == "comparative") {
-      J <- unlist(bounds[i, "J"])
-      if (dim(xp)[2] < 2) {
-        cyz <- c(cyz, r(y, xp, cbind(xtz, d))) ## only one xp -> J is disregarded
-      } else {
-        xpjc <- xp[, setdiff(colnames(xp), J)]
-        cyz <- c(cyz, r(y, xp[, J], cbind(xtz, xpjc, d)))
-      }
-      bzy <- c(bzy, bounds[i, "b"])
+      c2 <- c(c2, r(y, d, xxi))
+      c3 <- c(c3, r(d, xpic, xxi))
+      c4 <- c(c4, r(y, xpic, xxi))
+      lb_e <- c(lb_e, bounds[i, "lb"])
+      ub_e <- c(ub_e, bounds[i, "ub"])
     }
   }
-
-  comp_d_bound_g <- function(a) {
-    ub_g <- if (is.null(c4)) 1 else min(1, eq_g(a, ub_h, c4, c5, c6))
-    lb_g <- if (is.null(c4)) -1 else max(-1, eq_g(a, lb_h, c4, c5, c6))
-    c(lb_g, ub_g)
-  }
-
-  fun_list <- c(eq_b, comp_d_bound_g)
-  names(fun_list) <- c("eq_b", "comp_d_bound_g")
-
-  if (any(bounds[,"arrow"] %in% c("ZU", "ZY"))) {
-    c1 <- r(y, z, cbind(xtxp, d))
-    f_c1 <- c1 / sqrt(1-c1^2)
-    c2 <- r(d, z, xtxp)
-    ## returns fd
-    eq_fd <- function(a, e) (e / sqrt(1-e^2) * sqrt(1-c2^2) - c2 * a) / sqrt(1-a^2)
-    f_cyz <- if(is.null(cyz)) NULL else cyz / sqrt(1 - cyz^2)
-    cyz_os <- if (is.null(cyz)) NULL else 1 - cyz^2
-
-    ## compute bounds on f
-    comp_bound_f <- function(a, b) {
-      if (is.null(cyz)) {
-        lb_f <- -1
-        ub_f <- 1
-      } else {
-        f_comp <- (f_cyz * sqrt(1-a^2) + b * cyz * a) /
-          sqrt(1-b^2) / sqrt(1 - a^2 * cyz_os)
-        r2_comp <- f_comp^2 / (1 + f_comp^2)
-        ub_f <- min(1, sqrt(bzy * r2_comp))
-        lb_f <- max(-1, -sqrt(bzy * r2_comp))
-      }
-      c(lb_f, ub_f)
+  
+  ## Function yielding comparative-d bounds on d
+  comp_d_bound_d <- function(a) {
+    if (is.null(c2)) {
+      ret <- c(-1,1)
+    } else {
+      ret <- c(max(-1, hd(a, lb_e, c2, c3, c4)),
+               min(1, hd(a, ub_e, c2, c3, c4)))
     }
-
-    fun_list[[3]] <- eq_fd
-    fun_list[[4]] <- f_c1
-    fun_list[[5]] <- comp_bound_f
-    names(fun_list)[3:5] <- c("eq_fd", "f_c1", "comp_bound_f")
+    ret
   }
+  
+  fun_list <- c(hb, comp_d_bound_d)
+  names(fun_list) <- c("hb", "comp_d_bound_d")
   fun_list
 }
 
 
-
-## Creating a grid a feasible (a,b)-values
-## full_grid specifies if only values relevant for optimization, i.e.
-## the boundary, are included.
-#' @export
-feasible_grid <- function(y, d, xt, xp, z, bounds, grid_specs, full_grid,
-                          print_warning = FALSE, eps = 0.001) {
-  list2env(grid_specs, environment())
-  list2env(constraint_functions(y, d, xt, xp, z, bounds), environment())
-
-  tsls_constr <- any(bounds[,"arrow"] %in% c("ZU", "ZY"))
-  comp_uy_bound <- dim(bounds[(bounds$arrow == "UY") &
-                                (bounds$kind != "direct"),])[1] > 0
-
-  ## TSLS-only part
-  if (tsls_constr) {
-    ## Bound on e
-    be <- bounds[bounds$arrow == "ZU", c("lb", "ub")]
-    lb_e <- max(-1 + eps, be$lb)
-    ub_e <- min(1 - eps, be$ub)
-
-    ## Parameter-independent bounds on f (s for static)
-    bf <- bounds[(bounds$arrow == "ZY") & (bounds$kind == "direct"), c("lb", "ub")]
-    lb_fs <- max(-1 + eps, bf$lb)
-    ub_fs <- min(1 - eps, bf$ub)
+tsls_constraint_functions <- function(y, d, xt, xp, z, bounds) {
+  xtz <- cbind(xt, z)
+  x <- cbind(xt, xp)
+  
+  ## hfg
+  c5 <- r(d, z, x)
+  hfg <- function(a, m) (f(m) * sqrt(1-c5^2) - c5 * a) / sqrt(1-a^2)
+  
+  
+  ## hfo
+  c6 <- r(y, z, cbind(x, d))
+  hfo <- function(b, g) (f(c6) * sqrt(1-g^2) - b * g) / sqrt(1-b^2)
+  
+  
+  ## hfq
+  hfq <- function(a, b, c7) {
+    (f(c7) * sqrt(1-a^2) + c7 * a * b) / sqrt(1-b^2) / sqrt(1 - a^2 * (1-c7^2))
   }
+  
+  
+  ## Computing constants
+  c7 <- b7 <- c()
+  for (i in seq_len(nrow(bounds))) {
+    if (bounds[i, "arrow"] == "ZY" &&
+        bounds[i, "kind"] == "comparative") {
+      J <- unlist(bounds[i, "J"])
+      if (dim(xp)[2] < 2) {
+        c7 <- c(c7, r(y, xp, cbind(xtz, d))) ## only one xp -> J is disregarded
+      } else {
+        xpjc <- xp[, setdiff(colnames(xp), J)]
+        c7 <- c(c7, r(y, xp[, J], cbind(xtz, xpjc, d)))
+      }
+      b7 <- c(b7, bounds[i, "b"])
+    }
+  }
+  
+  ## Function yielding comparative bounds on o
+  comp_bound_o <- function(a, b) {
+    if (is.null(c7)) {
+      lb_o <- -1
+      ub_o <- 1
+    } else {
+      fq <- hfq(a, b, c7)
+      bounds_o <- sqrt(b7 * finv(fq)^2)
+      ub_o <- min(1, bounds_o)
+      lb_o <- max(-1, -bounds_o)
+    }
+    c(lb_o, ub_o)
+  }
+  
+  fun_list <- list(hfg, hfo, comp_bound_o)
+  names(fun_list) <- c("hfg", "hfo", "comp_bound_o")
+  fun_list
+}
 
+
+constraint_functions <- function(y, d, xt, xp, z, bounds) {
+  ## Functions for OLS constraints
+  list_ols <- ols_constraint_functions(y, d, xt, xp, z, bounds)
+  
+  ## Functions for TSLS constraints
+  if (any(bounds[,"arrow"] %in% c("ZU", "ZY"))) {
+    list_tsls <- tsls_constraint_functions(y, d, xt, xp, z, bounds)
+  } else {
+    list_tsls <- NULL
+  }
+  
+  c(list_ols, list_tsls)
+}
+
+
+static_bounds <- function(y, d, xt, xp, z, bounds, eps) {
+  
   ## Bounds on a
   ba <- bounds[bounds$arrow == "UD", c("lb", "ub")]
-  lb_a <- max(-1 + eps, ba$lb)
-  ub_a <- min(1 - eps, ba$ub)
-
-  ## Parameter-independent bounds on b and g (s for static)
+  lb_as <- max(-1 + eps, ba$lb)
+  ub_as <- min(1 - eps, ba$ub)
+  
   ## Bounds on b
   bb <- bounds[(bounds$arrow == "UY") & (bounds$kind == "direct"), c("lb", "ub")]
   lb_bs <- max(-1 + eps, bb$lb)
   ub_bs <- min(1 - eps, bb$ub)
-  ## Bounds on g
-  bg <- bounds[(bounds$arrow == "UY") & (bounds$kind == "comparative"), c("lb", "ub")]
-  lb_gs <- max(-1 + eps, bg$lb)
-  ub_gs <- min(1 - eps, bg$ub)
+  
+  ## Bounds on d
+  bd <- bounds[(bounds$arrow == "UY") & (bounds$kind == "comparative"), c("lb", "ub")]
+  lb_ds <- max(-1 + eps, bd$lb)
+  ub_ds <- min(1 - eps, bd$ub)
+  
+  ## for TSLS constraints
+  if (any(bounds[,"arrow"] %in% c("ZU", "ZY"))) {
+    ## Bound on m
+    bm <- bounds[bounds$arrow == "ZU", c("lb", "ub")]
+    lb_ms <- max(-1 + eps, bm$lb)
+    ub_ms <- min(1 - eps, bm$ub)
+    
+    ## Bounds on o
+    bo <- bounds[(bounds$arrow == "ZY") & (bounds$kind == "direct"), c("lb", "ub")]
+    lb_os <- max(-1 + eps, bo$lb)
+    ub_os <- min(1 - eps, bo$ub)
+  } else {
+    lb_ms <- ub_ms <- lb_os <- ub_os <- NULL
+  }
+  
+  list(lb_ms = lb_ms, ub_ms = ub_ms, lb_os = lb_os, ub_os = ub_os,
+       lb_as = lb_as, ub_as = ub_as, lb_bs = lb_bs, ub_bs = ub_bs,
+       lb_ds = lb_ds, ub_ds = ub_ds)
+}
 
-  a_seq <- seq(lb_a, ub_a, length.out = num_x)
-  dim2 <- if (full_grid) num_y else 2
-  b_mat <- matrix(NA, num_x, dim2)
 
+grid_search <- function(constraint_functions, static_bounds, grid_specs,
+                        full_grid, exist_tsls_bound, exist_comp_uy_bound) {
+  
+  ## needs comparative bounds and TSLS info
+  ## STOPPED HERE (good effort)
+  
+  list2env(constraint_functions, environment())
+  list2env(static_bounds, environment())
+  list2env(grid_specs, environment())
+  
+  
+  a_seq <- seq(lb_as, ub_as, length.out = num_x)
+  b_mat <- matrix(NA, num_x, if (full_grid) num_y else 2)
+  
   ## Grid-search
   for (i in seq_along(a_seq)) {
-    ## Bound on b
+    ## Push forward OLS bounds on b
     lb_b <- lb_bs
     ub_b <- ub_bs
-    if (comp_uy_bound) {
-      bg <- comp_d_bound_g(a_seq[i])
-      lb_g <- max(lb_gs, bg[1])
-      ub_g <- min(ub_gs, bg[2])
-      lb_b <- max(lb_b, eq_b(a_seq[i], lb_g))
-      ub_b <- min(ub_b, eq_b(a_seq[i], ub_g))
+    if (exist_comp_uy_bound) {
+      bd <- comp_d_bound_d(a_seq[i])
+      lb_d <- max(lb_ds, bd[1])
+      ub_d <- min(ub_ds, bd[2])
+      lb_b <- max(lb_b, hb(a_seq[i], lb_d))
+      ub_b <- min(ub_b, hb(a_seq[i], ub_d))
     }
+    
     if (lb_b >= ub_b) {
       b_mat[i, ] <- NA
-    } else if ((lb_b < ub_b) && (!tsls_constr)) {
+    } else if ((lb_b < ub_b) && (!exist_tsls_bound)) {
       b_mat[i, ] <- if (full_grid) seq(lb_b, ub_b, length.out = num_y) else c(lb_b, ub_b)
     } else {
-      ## case: tsls_constr
-      fdl <- eq_fd(a_seq[i], lb_e)
-      fdu <- eq_fd(a_seq[i], ub_e)
-      lb_d <- fdl / sqrt(1 + fdl^2)
-      ub_d <- fdu / sqrt(1 + fdu^2)
-      d_seq <- seq(lb_d, ub_d, length.out = num_z)
-
+      ## Case with TSLS constraints
+      
+      ## Push forward ZU bounds on g
+      lb_g <- finv(hfg(a_seq[i], lb_ms))
+      ub_g <- finv(hfg(a_seq[i], ub_ms))
+      g_seq <- seq(lb_g, ub_g, length.out = num_z)
+      
       ## function that tests whether particular b is feasible
       test_b <- function (b) {
-        bm <- comp_bound_f(a_seq[i], b)
-        lb_f <- max(lb_fs, bm[1])
-        ub_f <- min(ub_fs, bm[2])
-        if (lb_f < ub_f) {
-          ff <- (f_c1 * sqrt(1-d_seq^2) - b * d_seq) / sqrt(1-b^2)
-          f <- ff / sqrt(1 + ff^2)
-          ret <- any((f >= lb_f) & (f <= ub_f))
+        bo <- comp_bound_o(a_seq[i], b)
+        lb_o <- max(lb_os, bo[1])
+        ub_o <- min(ub_os, bo[2])
+        if (lb_o < ub_o) {
+          o <- finv(hfo(b, g_seq))
+          ret <- any((o >= lb_o) & (o <= ub_o))
         } else {
           ret <- FALSE
         }
         ret
       }
-
+      
       b_seq <- seq(lb_b, ub_b, length.out = num_y)
       if (full_grid) {
         for (j in seq_along(b_seq)) {
@@ -194,21 +234,47 @@ feasible_grid <- function(y, d, xt, xp, z, bounds, grid_specs, full_grid,
           }
         }
       }
+      
     }
+    
   }
-
-  if (print_warning && all(is.na(b_mat))) {
-    warning(paste0("Feasible values of R[D ~ U | X, Z] and ",
-                   "R[Y ~ U | X, Z, D] could not be found.\n",
-                   "The bounds are probably too restrictive."))
-  }
-
+  
+  
+  # if (print_warning && all(is.na(b_mat))) {
+  #   warning(paste0("Feasible values of R[D ~ U | X, Z] and ",
+  #                  "R[Y ~ U | X, Z, D] could not be found.\n",
+  #                  "The bounds are probably too restrictive."))
+  # }
+  
   list(a_seq = a_seq, b_mat = b_mat)
 }
 
 
+
+
+
+feasible_grid <- function(y, d, xt, xp, z, bounds, grid_specs,
+                          full_grid, eps = 0.001) {
+  
+  constraint_functions <- constraint_functions(y, d, xt, xp, z, bounds)
+  static_bounds <- static_bounds(y, d, xt, xp, z, bounds, eps)
+  
+  exist_tsls_bound <- any(bounds[,"arrow"] %in% c("ZU", "ZY"))
+  exist_comp_uy_bound <- dim(bounds[(bounds$arrow == "UY") &
+                                      (bounds$kind != "direct"),])[1] > 0
+  
+  res <- grid_search(constraint_functions, static_bounds, grid_specs,
+                     full_grid, exist_tsls_bound, exist_comp_uy_bound)
+  res
+}
+
+
+
+
+
 ## Evaluating objective, i.e. causal effect, over grid
-eval_on_grid <- function(a_seq, b_mat, beta_ols, sd_y_xzd, sd_d_xz) {
+eval_on_grid <- function(a_seq, b_mat, eval_param) {
+  list2env(eval_param, environment())
   a_mat <- matrix(rep(a_seq, dim(b_mat)[2]), length(a_seq), dim(b_mat)[2])
-  beta_ols - b_mat * a_mat / sqrt(1 - a_mat^2) * sd_y_xzd / sd_d_xz
+  beta_ols - b_mat * f(a_mat) * sd_y_xzd / sd_d_xz
 }

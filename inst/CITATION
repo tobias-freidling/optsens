@@ -1,0 +1,7 @@
+bibentry(
+  bibtype  = "Article",
+  title    = "Optimization-based Sensitivity Analysis for Unmeasured Confounding using Partial Correlations",
+  author   = c(as.person("Tobias Freidling"), as.person("Qingyuan Zhao")),
+  journal  = "arXiv preprint arXiv:2301.00040v3",
+  year     = "2024"
+)
