@@ -16,7 +16,7 @@ compute_eval_param <- function(y, d, xt, xp, z) {
 ## Is there a smarter way to handle the data hand-over??
 
 ## Solving the optimization problem with the observations data[indices,]
-one_opt <- function(data, indices, bounds, grid_specs, indep_x, dep_x, eps) {
+one_opt <- function(data, indices, bounds, grid_specs, indep_x, dep_x, eps, cpp) {
   ## data as matrix with labelled columns
   y <- data[indices, "y"]
   d <- data[indices, "d"]
@@ -43,7 +43,7 @@ one_opt <- function(data, indices, bounds, grid_specs, indep_x, dep_x, eps) {
   ## Core of the method
   bounds_ind <- recompute_bounds(y, d, xt, xp, z, bounds)
   grid_list <- feasible_grid(y, d, xt, xp, z, bounds_ind,
-                             grid_specs, FALSE, eps)
+                             grid_specs, FALSE, eps, cpp)
   eval_param <- compute_eval_param(y, d, xt, xp, z)
   eval_mat <- eval_on_grid(grid_list$a_seq, grid_list$b_mat, eval_param)
 
@@ -56,7 +56,7 @@ one_opt <- function(data, indices, bounds, grid_specs, indep_x, dep_x, eps) {
 ## Computing the partially identified region (PIR)
 #' @export
 pir <- function(sa, grid_specs = list(num_x = 100, num_y = 100, num_z = 100),
-                eps = 0.001) {
+                eps = 0.001, cpp = FALSE) {
   
   check_pir(sa, grid_specs, eps)
   list2env(sa, environment())
@@ -71,7 +71,7 @@ pir <- function(sa, grid_specs = list(num_x = 100, num_y = 100, num_z = 100),
   indices <- 1:length(y)
   indep_x <- if (is.null(xp)) NULL else colnames(xp)
   dep_x <- if (is.null(xt)) NULL else colnames(xt)
-  pir <- one_opt(data_mat, indices, bounds, grid_specs, indep_x, dep_x, eps)
+  pir <- one_opt(data_mat, indices, bounds, grid_specs, indep_x, dep_x, eps, cpp)
   pir
 }
 

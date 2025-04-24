@@ -118,6 +118,58 @@ constraint_functions <- function(y, d, xt, xp, z, bounds) {
 }
 
 
+constants <- function(y, d, xt, xp, z, bounds) {
+  xtz <- cbind(xt, z)
+  x <- cbind(xt, xp)
+  
+  c1 <- r(y, d, cbind(xtz, xp))
+  
+  c2 <- c3 <- c4 <- lb_e <- ub_e <- c()
+  for (i in seq_len(nrow(bounds))) {
+    if (bounds[i, "arrow"] == "UY" &&
+        bounds[i, "kind"] == "comparative-d") {
+      I <- unlist(bounds[i, "I"])
+      xpic <- xp[, setdiff(colnames(xp), I)]
+      xxi <- if (is.null(I)) xtz else cbind(xtz, xp[, I])
+      c2 <- c(c2, r(y, d, xxi))
+      c3 <- c(c3, r(d, xpic, xxi))
+      c4 <- c(c4, r(y, xpic, xxi))
+      lb_e <- c(lb_e, bounds[i, "lb"])
+      ub_e <- c(ub_e, bounds[i, "ub"])
+    }
+  }
+  
+  if (is.null(c2)) {
+    c2 <- c3 <- c4 <- lb_e <- ub_e <- NA 
+  }
+  
+  c5 <- r(d, z, x)
+  c6 <- r(y, z, cbind(x, d))
+  
+  c7 <- b7 <- c()
+  for (i in seq_len(nrow(bounds))) {
+    if (bounds[i, "arrow"] == "ZY" &&
+        bounds[i, "kind"] == "comparative") {
+      J <- unlist(bounds[i, "J"])
+      if (dim(xp)[2] < 2) {
+        c7 <- c(c7, r(y, xp, cbind(xtz, d))) ## only one xp -> J is disregarded
+      } else {
+        xpjc <- xp[, setdiff(colnames(xp), J)]
+        c7 <- c(c7, r(y, xp[, J], cbind(xtz, xpjc, d)))
+      }
+      b7 <- c(b7, bounds[i, "b"])
+    }
+  }
+  
+  if (is.null(c7)) {
+    c7 <- b7 <- NA
+  }
+  
+  list(c1 = c1, c2 = c2, c3 = c3, c4 = c4, c5 = c5, c6 = c6, c7 = c7, b7 = b7,
+       lb_e = lb_e, ub_e = ub_e)
+}
+
+
 static_bounds <- function(y, d, xt, xp, z, bounds, eps) {
   
   ## Bounds on a
@@ -254,17 +306,44 @@ grid_search <- function(constraint_functions, static_bounds, grid_specs,
 
 
 feasible_grid <- function(y, d, xt, xp, z, bounds, grid_specs,
-                          full_grid, eps = 0.001) {
+                          full_grid, eps = 0.001, cpp = FALSE) {
   
-  constraint_functions <- constraint_functions(y, d, xt, xp, z, bounds)
+  
   static_bounds <- static_bounds(y, d, xt, xp, z, bounds, eps)
   
   exist_tsls_bound <- any(bounds[,"arrow"] %in% c("ZU", "ZY"))
   exist_comp_uy_bound <- dim(bounds[(bounds$arrow == "UY") &
                                       (bounds$kind != "direct"),])[1] > 0
   
-  res <- grid_search(constraint_functions, static_bounds, grid_specs,
-                     full_grid, exist_tsls_bound, exist_comp_uy_bound)
+  if (!cpp) { ## R implementation
+    constraint_functions <- constraint_functions(y, d, xt, xp, z, bounds)
+    res <- grid_search(constraint_functions, static_bounds, grid_specs,
+                       full_grid, exist_tsls_bound, exist_comp_uy_bound)
+  } else {
+    ## get all the inputs for grid_search_cpp
+    list2env(static_bounds, environment())
+    
+    constants_list <- constants(y, d, xt, xp, z, bounds)
+    list2env(constants_list, environment())
+    
+    if (is.null(lb_ms)) {
+      lb_ms <- ub_ms <- lb_os <- ub_os <- NA
+    }
+    
+    ret <- grid_search_cpp(grid_specs$num_x, grid_specs$num_y, grid_specs$num_z,
+                           full_grid,
+                           lb_as, ub_as,
+                           lb_bs, ub_bs,
+                           lb_ds, ub_ds,
+                           lb_ms, ub_ms,
+                           lb_os, ub_os,
+                           lb_e, ub_e,
+                           exist_comp_uy_bound,
+                           exist_tsls_bound,
+                           c1, c2, c3, c4, c5, c6, c7, b7)
+    
+    res <- list(a_seq = ret$p1_seq, b_mat = ret$p2_mat)
+  }
   res
 }
 

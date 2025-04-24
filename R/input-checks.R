@@ -8,11 +8,11 @@ check_sensana <- function(y, d, indep_x, dep_x, x, z, quantile, alpha) {
     stop("'d' must be a numeric vector.")
   }
   
-  if (!is.null(indep_x) || !is.character(indep_x)) {
+  if (!is.null(indep_x) && !is.character(indep_x)) {
     stop("'indep_x must be NULL or a character vector.")
   }
   
-  if (!is.null(dep_x) || !is.character(dep_x)) {
+  if (!is.null(dep_x) && !is.character(dep_x)) {
     stop("'dep_x must be NULL or a character vector.")
   }
   
@@ -59,7 +59,7 @@ check_add_bound <- function(sa, arrow, kind, lb, ub, b, I, J,
     stop("'lb' and 'ub' must form an interval within [-1,1].")
   }
   
-  if (kind != "direct" && (!is.numeric(b) || !is.length(b) || b <= 0)) {
+  if (kind != "direct" && (!is.numeric(b) || length(b) != 1 || b <= 0)) {
     stop("'b' must be a positive number.")
   }
   
@@ -75,7 +75,7 @@ check_add_bound <- function(sa, arrow, kind, lb, ub, b, I, J,
     stop("'comparative-d' bounds are only possible for the arrow 'UY'.")
   }
   
-  if (arrow %in% c("UD", "UY")) {
+  if (arrow %in% c("UD", "UY") && kind != "direct") {
     if (!is.character(I) || !is.character(J)) {
       stop("'I' and 'J' must be strings or vectors of strings.")
     }
@@ -88,7 +88,8 @@ check_add_bound <- function(sa, arrow, kind, lb, ub, b, I, J,
       stop("'I' and 'J' must be subsets of the conditionall independent covariates.")
     }
     
-  } else { ## arrow %in% c("ZU", "ZY")
+  }
+  if (arrow %in% c("ZU", "ZY") && kind != "direct") {
     if (!is.character(J) || length(J) != 1) {
       stop("'J' must be one string for bounds on 'ZU' and 'ZY'.")
     }

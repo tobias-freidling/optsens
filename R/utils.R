@@ -1,27 +1,25 @@
 
+## The data must be centred.
 
-## The data is assumed to be centred.
 r <- function(A, B, C = NULL) {
   if (!is.null(C)) {
-    z <- .Call(stats:::C_Cdqrls, C, cbind(A,B), 1e-07, FALSE)
-    A <- as.vector(z$residuals[,1])
-    B <- as.vector(z$residuals[,2])
+    res <- r_partial(A, B, C)
+  } else {
+    res <- r_marginal(A, B)
   }
-  sum(A * B) / norm(A, "2") / norm(B, "2")
+  res
 }
-
 
 
 r2 <- function(A, B, C = NULL) {
   B <- as.matrix(B)
   if (!is.null(C)) {
     C <- as.matrix(C)
-    z <- .Call(stats:::C_Cdqrls, C, cbind(A,B), 1e-07, FALSE)
-    A <- as.vector(z$residuals[,1])
-    B <- as.matrix(z$residuals[,2:(dim(B)[2]+1)])
+    ret <- r2_partial(A, B, C)
+  } else {
+    ret <- r2_marginal(A, B)
   }
-  z <- .Call(stats:::C_Cdqrls, B, A, 1e-07, FALSE)
-  1 - norm(as.vector(z$residuals), "2")^2 / norm(A, "2")^2
+  ret
 }
 
 

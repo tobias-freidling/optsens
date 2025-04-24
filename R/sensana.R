@@ -36,11 +36,17 @@ sensana <- function(y, d, indep_x, dep_x, x = NULL, z = NULL,
     y_xz <- yc
     d_xz <- dc
   } else {
-    decomp_xz <- .Call(stats:::C_Cdqrls, xzc, cbind(yc, dc), 1e-7, FALSE)
-    y_xz <- as.vector(decomp_xz$residuals[,1])
-    d_xz <- as.vector(decomp_xz$residuals[,2])
+    decomp_xz <- resid_cpp(xzc, cbind(yc, dc))
+    ## decomp_xz <- resid_cpp(cbind(yc, dc), xzc)
+    y_xz <- as.vector(decomp_xz[,1])
+    d_xz <- as.vector(decomp_xz[,2])
+    ## decomp_xz <- .Call(stats:::C_Cdqrls, xzc, cbind(yc, dc), 1e-7, FALSE)
+    ## y_xz <- as.vector(decomp_xz$residuals[,1])
+    ## d_xz <- as.vector(decomp_xz$residuals[,2])
   }
-  y_xzd <- .Call(stats:::C_Cdqrls, cbind(xzc,dc), yc, 1e-7, FALSE)$residuals
+  y_xzd <- as.vector(resid_cpp(cbind(xzc,dc), as.matrix(yc)))
+  ##y_xzd <- as.vector(resid_cpp(as.matrix(yc), cbind(xzc,dc)))
+  ## y_xzd <- .Call(stats:::C_Cdqrls, cbind(xzc,dc), yc, 1e-7, FALSE)$residuals
   df <- length(yc) - dim(xzc)[2] - 2 ## intercept + treatment/instrument
   q <- if (quantile == "normal") qnorm(1 - alpha/2) else qt(1 - alpha/2, df)
   
@@ -60,10 +66,15 @@ sensana <- function(y, d, indep_x, dep_x, x = NULL, z = NULL,
       d_x <- dc
       z_x <- zc
     } else {
-      decomp_x <- .Call(stats:::C_Cdqrls, xc, cbind(yc, dc, zc), 1e-7, FALSE)
-      y_x <- as.vector(decomp_x$residuals[,1])
-      d_x <- as.vector(decomp_x$residuals[,2])
-      z_x <- as.vector(decomp_x$residuals[,3])
+      decomp_x <- resid_cpp(xc, cbind(yc, dc, zc))
+      ## decomp_x <- resid_cpp(cbind(yc, dc, zc), xc)
+      y_x <- as.vector(decomp_x[,1])
+      d_x <- as.vector(decomp_x[,2])
+      z_x <- as.vector(decomp_x[,3])
+      ## decomp_x <- .Call(stats:::C_Cdqrls, xc, cbind(yc, dc, zc), 1e-7, FALSE)
+      ## y_x <- as.vector(decomp_x$residuals[,1])
+      ## d_x <- as.vector(decomp_x$residuals[,2])
+      ## z_x <- as.vector(decomp_x$residuals[,3])
     }
     
     beta_tsls <- sum(y_x * z_x) / sum(d_x * z_x)
