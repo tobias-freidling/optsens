@@ -16,7 +16,7 @@ compute_eval_param <- function(y, d, xt, xp, z) {
 ## Is there a smarter way to handle the data hand-over??
 
 ## Solving the optimization problem with the observations data[indices,]
-one_opt <- function(data, indices, bounds, grid_specs, indep_x, dep_x, eps, cpp) {
+one_opt <- function(data, indices, bounds, grid_specs, indep_x, dep_x, eps) {
   ## data as matrix with labelled columns
   y <- data[indices, "y"]
   d <- data[indices, "d"]
@@ -43,9 +43,10 @@ one_opt <- function(data, indices, bounds, grid_specs, indep_x, dep_x, eps, cpp)
   ## Core of the method
   bounds_ind <- recompute_bounds(y, d, xt, xp, z, bounds)
   grid_list <- feasible_grid(y, d, xt, xp, z, bounds_ind,
-                             grid_specs, FALSE, eps, cpp)
-  eval_param <- compute_eval_param(y, d, xt, xp, z)
-  eval_mat <- eval_on_grid(grid_list$a_seq, grid_list$b_mat, eval_param)
+                             grid_specs, FALSE, eps)
+  ep <- compute_eval_param(y, d, xt, xp, z)
+  eval_mat <- eval_on_grid(grid_list$p1_seq, grid_list$p2_mat,
+                           ep$beta_ols, ep$sd_y_xzd, ep$sd_d_xz)
 
   ## Evaluating and reporting the results
   ret <- if(all(is.na(eval_mat))) c(-Inf, Inf) else range(eval_mat, na.rm = TRUE)
@@ -55,23 +56,22 @@ one_opt <- function(data, indices, bounds, grid_specs, indep_x, dep_x, eps, cpp)
 
 ## Computing the partially identified region (PIR)
 #' @export
-pir <- function(sa, grid_specs = list(num_x = 100, num_y = 100, num_z = 100),
-                eps = 0.001, cpp = FALSE) {
+pir <- function(sa, grid_specs = list(N1 = 100, N2 = 100, N5 = 100),
+                eps = 0.001) {
   
   check_pir(sa, grid_specs, eps)
-  list2env(sa, environment())
-
-  data_mat <- cbind(y, d, z, xp, xt)
-  if (is.null(z)) {
+  
+  data_mat <- cbind(sa$y, sa$d, sa$z, sa$xp, sa$xt)
+  if (is.null(sa$z)) {
     colnames(data_mat)[c(1,2)] <- c("y", "d")
   } else {
     colnames(data_mat)[c(1,2,3)] <- c("y", "d", "z")
   }
 
-  indices <- 1:length(y)
-  indep_x <- if (is.null(xp)) NULL else colnames(xp)
-  dep_x <- if (is.null(xt)) NULL else colnames(xt)
-  pir <- one_opt(data_mat, indices, bounds, grid_specs, indep_x, dep_x, eps, cpp)
+  indices <- 1:length(sa$y)
+  indep_x <- if (is.null(sa$xp)) NULL else colnames(sa$xp)
+  dep_x <- if (is.null(sa$xt)) NULL else colnames(sa$xt)
+  pir <- one_opt(data_mat, indices, sa$bounds, grid_specs, indep_x, dep_x, eps)
   pir
 }
 
@@ -83,14 +83,14 @@ pir <- function(sa, grid_specs = list(num_x = 100, num_y = 100, num_z = 100),
 #' @export
 sensint <- function(sa, alpha = 0.05, boot_procedure = c("perc", "basic"),
                     boot_samples = 500,
-                    grid_specs = list(num_x = 100, num_y = 100, num_z = 100),
+                    grid_specs = list(N1 = 100, N2 = 100, N5 = 100),
                     eps = 0.001,
                     parallel = "no", ncpus = getOption("boot.ncpus", 1L)) {
 
   check_sensint(sa, alpha, boot_procedure, boot_samples,
                 grid_specs, eps, parallel, ncpus)
   
-  list2env(sa, environment())
+  ## list2env(sa, environment())
   
   
   ## boot_procedure
@@ -99,20 +99,20 @@ sensint <- function(sa, alpha = 0.05, boot_procedure = c("perc", "basic"),
   
   ## how to do match.arg with possibly vector-valued input?
 
-  data_mat <- cbind(y, d, z, xp, xt)
-  if (is.null(z)) {
+  data_mat <- cbind(sa$y, sa$d, sa$z, sa$xp, sa$xt)
+  if (is.null(sa$z)) {
     colnames(data_mat)[c(1,2)] <- c("y", "d")
   } else {
     colnames(data_mat)[c(1,2,3)] <- c("y", "d", "z")
   }
-  indep_x <- if (is.null(xp)) NULL else colnames(xp)
-  dep_x <- if (is.null(xt)) NULL else colnames(xt)
+  indep_x <- if (is.null(sa$xp)) NULL else colnames(sa$xp)
+  dep_x <- if (is.null(sa$xt)) NULL else colnames(sa$xt)
 
   ## Bootstrapping the one_opt function
   boot_obj <- boot::boot(data = data_mat,
                          statistic = one_opt,
                          R = boot_samples,
-                         bounds = bounds,
+                         bounds = sa$bounds,
                          grid_specs = grid_specs,
                          indep_x = indep_x,
                          dep_x = dep_x,
@@ -179,12 +179,10 @@ sensint <- function(sa, alpha = 0.05, boot_procedure = c("perc", "basic"),
 
 
 #' @export
-print.sensint <- function(sint_obj, digits = max(3L, getOption("digits") - 3L)) {
-  list2env(sint_obj, environment())
-  
-  cat(round((1-alpha)*100, digits), "% Sensitivity Intervals:\n", sep = "")
-  print(sensint, digits)
+print.sensint <- function(x, digits = max(3L, getOption("digits") - 3L),...) {
+  cat(round((1-x$alpha)*100, digits), "% Sensitivity Intervals:\n", sep = "")
+  print(x$sensint, digits)
   cat("\n")
   
-  invisible(sint_obj)
+  invisible(x)
 }

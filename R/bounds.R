@@ -19,13 +19,11 @@ add_bound <- function(sa, arrow = c("UD", "UY", "ZU", "ZY"),
   
   ## warning that J will be ignored if dim(xp)[2] == 1
   
-  list2env(sa, environment())
-  
-  row_name <- if (name == "") paste0("b", rbc+1) else name
-  row <- compute_bound(y, d, xt, xp, z,
+  row_name <- if (name == "") paste0("b", sa$rbc+1) else name
+  row <- compute_bound(sa$y, sa$d, sa$xt, sa$xp, sa$z,
                        arrow, kind, lb, ub, b, I, J, print_warning)
   sa$bounds[row_name, ] <- row
-  sa$rbc <- rbc + 1
+  sa$rbc <- sa$rbc + 1
   sa
 }
 
@@ -33,7 +31,7 @@ add_bound <- function(sa, arrow = c("UD", "UY", "ZU", "ZY"),
 #' @export
 remove_bound <- function(sa, name) {
   
-  if (class(sa) != "sensana") {
+  if (!inherits(sa, "sensana")) {
     stop("'sa' must be a 'sensana' object.")
   }
   

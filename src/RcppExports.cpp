@@ -11,15 +11,15 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// grid_search_cpp
-List grid_search_cpp(int num_x, int num_y, int num_z, bool full_grid, double lb_p1s, double ub_p1s, double lb_p2s, double ub_p2s, double lb_p3s, double ub_p3s, double lb_p6s, double ub_p6s, double lb_p7s, double ub_p7s, NumericVector lb_p4, NumericVector ub_p4, bool exist_comp_uy_bound, bool exist_tsls_bound, double c1, NumericVector c2, NumericVector c3, NumericVector c4, double c5, double c6, NumericVector c7, NumericVector b7);
-RcppExport SEXP _optsens_grid_search_cpp(SEXP num_xSEXP, SEXP num_ySEXP, SEXP num_zSEXP, SEXP full_gridSEXP, SEXP lb_p1sSEXP, SEXP ub_p1sSEXP, SEXP lb_p2sSEXP, SEXP ub_p2sSEXP, SEXP lb_p3sSEXP, SEXP ub_p3sSEXP, SEXP lb_p6sSEXP, SEXP ub_p6sSEXP, SEXP lb_p7sSEXP, SEXP ub_p7sSEXP, SEXP lb_p4SEXP, SEXP ub_p4SEXP, SEXP exist_comp_uy_boundSEXP, SEXP exist_tsls_boundSEXP, SEXP c1SEXP, SEXP c2SEXP, SEXP c3SEXP, SEXP c4SEXP, SEXP c5SEXP, SEXP c6SEXP, SEXP c7SEXP, SEXP b7SEXP) {
+// grid_search
+List grid_search(int N1, int N2, int N5, bool full_grid, double lb_p1s, double ub_p1s, double lb_p2s, double ub_p2s, double lb_p3s, double ub_p3s, double lb_p6s, double ub_p6s, double lb_p7s, double ub_p7s, NumericVector lb_p4, NumericVector ub_p4, bool exist_comp_uy_bound, bool exist_tsls_bound, double c1, NumericVector c2, NumericVector c3, NumericVector c4, double c5, double c6, NumericVector c7, NumericVector b7);
+RcppExport SEXP _optsens_grid_search(SEXP N1SEXP, SEXP N2SEXP, SEXP N5SEXP, SEXP full_gridSEXP, SEXP lb_p1sSEXP, SEXP ub_p1sSEXP, SEXP lb_p2sSEXP, SEXP ub_p2sSEXP, SEXP lb_p3sSEXP, SEXP ub_p3sSEXP, SEXP lb_p6sSEXP, SEXP ub_p6sSEXP, SEXP lb_p7sSEXP, SEXP ub_p7sSEXP, SEXP lb_p4SEXP, SEXP ub_p4SEXP, SEXP exist_comp_uy_boundSEXP, SEXP exist_tsls_boundSEXP, SEXP c1SEXP, SEXP c2SEXP, SEXP c3SEXP, SEXP c4SEXP, SEXP c5SEXP, SEXP c6SEXP, SEXP c7SEXP, SEXP b7SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< int >::type num_x(num_xSEXP);
-    Rcpp::traits::input_parameter< int >::type num_y(num_ySEXP);
-    Rcpp::traits::input_parameter< int >::type num_z(num_zSEXP);
+    Rcpp::traits::input_parameter< int >::type N1(N1SEXP);
+    Rcpp::traits::input_parameter< int >::type N2(N2SEXP);
+    Rcpp::traits::input_parameter< int >::type N5(N5SEXP);
     Rcpp::traits::input_parameter< bool >::type full_grid(full_gridSEXP);
     Rcpp::traits::input_parameter< double >::type lb_p1s(lb_p1sSEXP);
     Rcpp::traits::input_parameter< double >::type ub_p1s(ub_p1sSEXP);
@@ -43,7 +43,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type c6(c6SEXP);
     Rcpp::traits::input_parameter< NumericVector >::type c7(c7SEXP);
     Rcpp::traits::input_parameter< NumericVector >::type b7(b7SEXP);
-    rcpp_result_gen = Rcpp::wrap(grid_search_cpp(num_x, num_y, num_z, full_grid, lb_p1s, ub_p1s, lb_p2s, ub_p2s, lb_p3s, ub_p3s, lb_p6s, ub_p6s, lb_p7s, ub_p7s, lb_p4, ub_p4, exist_comp_uy_bound, exist_tsls_bound, c1, c2, c3, c4, c5, c6, c7, b7));
+    rcpp_result_gen = Rcpp::wrap(grid_search(N1, N2, N5, full_grid, lb_p1s, ub_p1s, lb_p2s, ub_p2s, lb_p3s, ub_p3s, lb_p6s, ub_p6s, lb_p7s, ub_p7s, lb_p4, ub_p4, exist_comp_uy_bound, exist_tsls_bound, c1, c2, c3, c4, c5, c6, c7, b7));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -111,7 +111,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_optsens_grid_search_cpp", (DL_FUNC) &_optsens_grid_search_cpp, 26},
+    {"_optsens_grid_search", (DL_FUNC) &_optsens_grid_search, 26},
     {"_optsens_resid_cpp", (DL_FUNC) &_optsens_resid_cpp, 2},
     {"_optsens_r_marginal", (DL_FUNC) &_optsens_r_marginal, 2},
     {"_optsens_r_partial", (DL_FUNC) &_optsens_r_partial, 3},

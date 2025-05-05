@@ -47,12 +47,21 @@ sensana <- function(y, d, indep_x, dep_x, x = NULL, z = NULL,
   y_xzd <- as.vector(resid_cpp(cbind(xzc,dc), as.matrix(yc)))
   ##y_xzd <- as.vector(resid_cpp(as.matrix(yc), cbind(xzc,dc)))
   ## y_xzd <- .Call(stats:::C_Cdqrls, cbind(xzc,dc), yc, 1e-7, FALSE)$residuals
-  df <- length(yc) - dim(xzc)[2] - 2 ## intercept + treatment/instrument
-  q <- if (quantile == "normal") qnorm(1 - alpha/2) else qt(1 - alpha/2, df)
+  
+  
+  #########
+  ### STOPPED HERE
+  ## rank lm
+  n <- length(yc)
+  df_ols <- n - qr(cbind(xzc, dc, rep(1,n)))$rank
+  
+
+  ## df <- length(yc) - dim(xzc)[2] - 2 ## intercept + treatment/instrument
+  q_ols <- if (quantile == "normal") stats::qnorm(1 - alpha/2) else stats::qt(1 - alpha/2, df_ols)
   
   beta_ols <- sum(y_xz * d_xz) / sum(d_xz^2)
-  se_ols <- norm(y_xzd, "2") / norm(d_xz, "2") / sqrt(df)
-  confint_ols <- beta_ols + c(-1,1) * q * se_ols
+  se_ols <- norm(y_xzd, "2") / norm(d_xz, "2") / sqrt(df_ols)
+  confint_ols <- beta_ols + c(-1,1) * q_ols * se_ols
   
   
   ## TSLS estimate and confidence interval
@@ -65,21 +74,25 @@ sensana <- function(y, d, indep_x, dep_x, x = NULL, z = NULL,
       y_x <- yc
       d_x <- dc
       z_x <- zc
+      df_tsls <- n - 2
     } else {
       decomp_x <- resid_cpp(xc, cbind(yc, dc, zc))
       ## decomp_x <- resid_cpp(cbind(yc, dc, zc), xc)
       y_x <- as.vector(decomp_x[,1])
       d_x <- as.vector(decomp_x[,2])
       z_x <- as.vector(decomp_x[,3])
+      df_tsls <- n - qr(cbind(xc,rep(1,n)))$rank - 1
       ## decomp_x <- .Call(stats:::C_Cdqrls, xc, cbind(yc, dc, zc), 1e-7, FALSE)
       ## y_x <- as.vector(decomp_x$residuals[,1])
       ## d_x <- as.vector(decomp_x$residuals[,2])
       ## z_x <- as.vector(decomp_x$residuals[,3])
     }
     
+    q_tsls <- if (quantile == "normal") stats::qnorm(1 - alpha/2) else stats::qt(1 - alpha/2, df_tsls)
+    
     beta_tsls <- sum(y_x * z_x) / sum(d_x * z_x)
-    se_tsls <- norm(y_x - beta_tsls*d_x, "2") * norm(z_x, "2") / sum(d_x * z_x) / sqrt(df)
-    confint_tsls <- beta_tsls + c(-1,1) * q * se_tsls
+    se_tsls <- norm(y_x - beta_tsls*d_x, "2") * norm(z_x, "2") / sum(d_x * z_x) / sqrt(df_tsls)
+    confint_tsls <- beta_tsls + c(-1,1) * q_tsls * se_tsls
   }
     
   ## Initialization of bounds data frame
@@ -109,25 +122,32 @@ sensana <- function(y, d, indep_x, dep_x, x = NULL, z = NULL,
 
 
 #' @export
-print.sensana <- function(sa, digits = max(3L, getOption("digits") - 3L)) {
-  list2env(sa, environment())
+print.sensana <- function(x, digits = max(3L, getOption("digits") - 3L),...) {
   cat("Sensitivity Analysis:\n\n")
-  cat("Dependent Covariates: ", colnames(xt), "\n")
-  cat("Independent Covariates: ", colnames(xp), "\n\n")
+  cat("Dependent Covariates: ", colnames(x$xt), "\n")
+  cat("Independent Covariates: ", colnames(x$xp), "\n\n")
   
   cat("Estimators:\n")
-  cat("OLS\t", round(beta_ols, digits), "\n")
-  cat("TSLS\t", round(beta_tsls, digits), "\n\n")
+  cat("OLS\t", round(x$beta_ols, digits), "\n")
+  if (!is.null(x$beta_tsls)) {
+    cat("TSLS\t", round(x$beta_tsls, digits), "\n\n")
+  } else {
+    cat("\n")
+  }
   
-  cat(round((1-alpha)*100, digits), "% Confidence Intervals:\n", sep = "")
-  cat("OLS\t[", round(confint_ols[1], digits), ",",
-      round(confint_ols[2], digits), "]\n")
-  cat("TSLS\t[", round(confint_tsls[1], digits), ",",
-      round(confint_tsls[2], digits), "]\n\n")
+  cat(round((1-x$alpha)*100, digits), "% Confidence Intervals:\n", sep = "")
+  cat("OLS\t[", round(x$confint_ols[1], digits), ",",
+      round(x$confint_ols[2], digits), "]\n")
+  if (!is.null(x$confint_tsls)) {
+    cat("TSLS\t[", round(x$confint_tsls[1], digits), ",",
+        round(x$confint_tsls[2], digits), "]\n\n")
+  } else {
+    cat("\n")
+  }
   
   cat("Specified Bounds:\n")
-  print(bounds, digits = digits)
+  print(x$bounds, digits = digits)
   
   cat("\n")
-  invisible(sa)
+  invisible(x)
 }

@@ -39,7 +39,7 @@ bool check_p2(double p1, double p2, double c6,
               NumericVector c7, NumericVector b7,
               double lb_p5, double ub_p5,
               double lb_p7s, double ub_p7s,
-              int num_z) {
+              int N5) {
   bool found = false;
   
   double lb_p7c;
@@ -58,8 +58,8 @@ bool check_p2(double p1, double p2, double c6,
   double ub_p7 = std::min(ub_p7c, ub_p7s);
   
   if (lb_p7 <= ub_p7) {
-    for (int m = 0; m < num_z && !found; m++) {
-      double p5 = lb_p5 + m * (ub_p5 - lb_p5) / (num_z - 1);
+    for (int m = 0; m < N5 && !found; m++) {
+      double p5 = lb_p5 + m * (ub_p5 - lb_p5) / (N5 - 1);
       double p7 = g7(p2, p5, c6);
       found = lb_p7 <= p7 && p7 <= ub_p7;
     }
@@ -71,32 +71,32 @@ bool check_p2(double p1, double p2, double c6,
 
 
 // [[Rcpp::export]]
-List grid_search_cpp(int num_x, int num_y, int num_z, bool full_grid,
-                     double lb_p1s, double ub_p1s,
-                     double lb_p2s, double ub_p2s,
-                     double lb_p3s, double ub_p3s,
-                     double lb_p6s, double ub_p6s,
-                     double lb_p7s, double ub_p7s,
-                     NumericVector lb_p4, NumericVector ub_p4,
-                     bool exist_comp_uy_bound,
-                     bool exist_tsls_bound,
-                     double c1,
-                     NumericVector c2,
-                     NumericVector c3,
-                     NumericVector c4,
-                     double c5,
-                     double c6,
-                     NumericVector c7,
-                     NumericVector b7) {
+List grid_search(int N1, int N2, int N5, bool full_grid,
+                 double lb_p1s, double ub_p1s,
+                 double lb_p2s, double ub_p2s,
+                 double lb_p3s, double ub_p3s,
+                 double lb_p6s, double ub_p6s,
+                 double lb_p7s, double ub_p7s,
+                 NumericVector lb_p4, NumericVector ub_p4,
+                 bool exist_comp_uy_bound,
+                 bool exist_tsls_bound,
+                 double c1,
+                 NumericVector c2,
+                 NumericVector c3,
+                 NumericVector c4,
+                 double c5,
+                 double c6,
+                 NumericVector c7,
+                 NumericVector b7) {
   
-  //Rcpp::Rcout << "Hello from C++!" << std::endl;
+  //Rcpp::Rcout << "Hello from C++! Hello from C++! Hello from C++!" << std::endl;
   
-  int b_mat_dim2 = (full_grid) ? num_y : 2;
-  NumericVector p1_seq(num_x);
-  NumericMatrix p2_mat(num_x, b_mat_dim2);
+  int p2_mat_dim2 = (full_grid) ? N2 : 2;
+  NumericVector p1_seq(N1);
+  NumericMatrix p2_mat(N1, p2_mat_dim2);
   
-  for (int i = 0; i < num_x; i++) {
-    p1_seq[i] = lb_p1s + i * (ub_p1s - lb_p1s) / (num_x - 1);
+  for (int i = 0; i < N1; i++) {
+    p1_seq[i] = lb_p1s + i * (ub_p1s - lb_p1s) / (N1 - 1);
     
     double lb_p2 = lb_p2s;
     double ub_p2 = ub_p2s;
@@ -127,9 +127,9 @@ List grid_search_cpp(int num_x, int num_y, int num_z, bool full_grid,
       NumericMatrix::Row row = p2_mat.row(i);
       std::fill(row.begin(), row.end(), NA_REAL);
     } else if ((lb_p2 < ub_p2) && !exist_tsls_bound) {
-      // b_mat_dim2 = 2 if !full_grid
-      for (int j = 0; j < b_mat_dim2; j++) {
-        p2_mat(i, j) = lb_p2 + j * (ub_p2 - lb_p2) / (b_mat_dim2 - 1);
+      // p2_mat_dim2 = 2 if !full_grid
+      for (int j = 0; j < p2_mat_dim2; j++) {
+        p2_mat(i, j) = lb_p2 + j * (ub_p2 - lb_p2) / (p2_mat_dim2 - 1);
       }
     } else { // There are TSLS constraints
       double lb_p5 = g5(p1_seq[i], lb_p6s, c5);
@@ -137,28 +137,28 @@ List grid_search_cpp(int num_x, int num_y, int num_z, bool full_grid,
       
       // computational efficiency for !full_grid case
       if (full_grid) {
-        for (int k = 0; k < num_y; k++) {
-          double p2 = lb_p2 + k * (ub_p2 - lb_p2) / (num_y - 1);
+        for (int k = 0; k < N2; k++) {
+          double p2 = lb_p2 + k * (ub_p2 - lb_p2) / (N2 - 1);
           bool p2_valid = check_p2(p1_seq[i], p2, c6, c7, b7,
-                                   lb_p5, ub_p5, lb_p7s, ub_p7s, num_z);
+                                   lb_p5, ub_p5, lb_p7s, ub_p7s, N5);
           p2_mat(i, k) = p2_valid ? p2 : NA_REAL;
         }
       } else {
         bool found_lower = false;
-        for (int k = 0; k < num_y && !found_lower; k++) {
-          double p2 = lb_p2 + k * (ub_p2 - lb_p2) / (num_y - 1);
+        for (int k = 0; k < N2 && !found_lower; k++) {
+          double p2 = lb_p2 + k * (ub_p2 - lb_p2) / (N2 - 1);
           found_lower = check_p2(p1_seq[i], p2, c6, c7, b7,
-                                 lb_p5, ub_p5, lb_p7s, ub_p7s, num_z);
+                                 lb_p5, ub_p5, lb_p7s, ub_p7s, N5);
           if (found_lower) {
             p2_mat(i, 0) = p2;
           }
         }
         
         bool found_upper = false;
-        for (int k = num_y - 1; k >= 0 && !found_upper; k--) {
-          double p2 = lb_p2 + k * (ub_p2 - lb_p2) / (num_y - 1);
+        for (int k = N2 - 1; k >= 0 && !found_upper; k--) {
+          double p2 = lb_p2 + k * (ub_p2 - lb_p2) / (N2 - 1);
           found_upper = check_p2(p1_seq[i], p2, c6, c7, b7,
-                                 lb_p5, ub_p5, lb_p7s, ub_p7s, num_z);
+                                 lb_p5, ub_p5, lb_p7s, ub_p7s, N5);
           if (found_upper) {
             p2_mat(i, 1) = p2;
           }

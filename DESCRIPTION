@@ -17,10 +17,11 @@ Imports:
     ggrepel,
     metR,
     Rcpp,
+    rlang,
     stats
 Suggests:
     ivmodel,
-    testthat
+    testthat (>= 3.0.0)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
@@ -29,3 +30,4 @@ BugReports: https://github.com/tobias-freidling/optsens/issues
 LinkingTo: 
     Rcpp,
     RcppArmadillo
+Config/testthat/edition: 3

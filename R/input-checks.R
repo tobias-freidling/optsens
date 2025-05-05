@@ -49,7 +49,7 @@ check_sensana <- function(y, d, indep_x, dep_x, x, z, quantile, alpha) {
 check_add_bound <- function(sa, arrow, kind, lb, ub, b, I, J,
                             name, print_warning) {
   
-  if (class(sa) != "sensana") {
+  if (!inherits(sa, "sensana")) {
     stop("'sa' must be a 'sensana' object.")
   }
   
@@ -76,8 +76,12 @@ check_add_bound <- function(sa, arrow, kind, lb, ub, b, I, J,
   }
   
   if (arrow %in% c("UD", "UY") && kind != "direct") {
-    if (!is.character(I) || !is.character(J)) {
-      stop("'I' and 'J' must be strings or vectors of strings.")
+    if (!is.null(I) && !is.character(I)) {
+      stop("'I' must be NULL, a string or a vector of strings.")
+    }
+    
+    if (!is.character(J)) {
+      stop("'J' must be a string or a vector of strings.")
     }
     
     if (any(J %in% I) || any(I %in% J)) {
@@ -102,16 +106,16 @@ check_add_bound <- function(sa, arrow, kind, lb, ub, b, I, J,
 
 
 check_pir <- function(sa, grid_specs, eps) {
-  if (class(sa) != "sensana") {
+  if (!inherits(sa, "sensana")) {
     stop("'sa' must be a 'sensana' object.")
   }
   
   if (!is.list(grid_specs) ||
-      !all(names(grid_specs) == c("num_x", "num_y", "num_z")) ||
-      !is.numeric(grid_specs$num_x) || !is.numeric(grid_specs$num_y) ||
-      !is.numeric(grid_specs$num_z) || length(grid_specs$num_x) != 1 ||
-      length(grid_specs$num_y) != 1 || length(grid_specs$num_z) != 1) {
-    stop("'grid_specs' must be list of 3 numbers: num_x, num_y, num_z")
+      !all(names(grid_specs) == c("N1", "N2", "N5")) ||
+      !is.numeric(grid_specs$N1) || !is.numeric(grid_specs$N2) ||
+      !is.numeric(grid_specs$N5) || length(grid_specs$N1) != 1 ||
+      length(grid_specs$N2) != 1 || length(grid_specs$N5) != 1) {
+    stop("'grid_specs' must be list of 3 numbers: N1, N2, N5")
   }
   
   if (any(unlist(grid_specs) < 2)) {
@@ -147,7 +151,7 @@ check_sensint <- function(sa, alpha, boot_procedure, boot_samples,
 check_b_contours_data <- function(sa, pir_lower, bound1, range1, bound2, range2,
                                   grid_specs_b, grid_specs, eps) {
   
-  if (class(sa) != "sensana") {
+  if (!inherits(sa, "sensana")) {
     stop("'sa' must be a 'sensana' object.")
   }
   
@@ -176,10 +180,10 @@ check_b_contours_data <- function(sa, pir_lower, bound1, range1, bound2, range2,
   }
   
   if (!is.list(grid_specs_b) ||
-      !all(names(grid_specs_b) == c("num1", "num2")) ||
-      !is.numeric(grid_specs_b$num1) || !is.numeric(grid_specs_b$num2) ||
-      length(grid_specs_b$num1) != 1 || length(grid_specs_b$num2) != 1) {
-    stop("'grid_specs_b' must be list of 2 numbers: num1, num2")
+      !all(names(grid_specs_b) == c("N1b", "N2b")) ||
+      !is.numeric(grid_specs_b$N1b) || !is.numeric(grid_specs_b$N2b) ||
+      length(grid_specs_b$N1b) != 1 || length(grid_specs_b$N2b) != 1) {
+    stop("'grid_specs_b' must be list of 2 numbers: N1b, N2b")
   }
   
   if (any(unlist(grid_specs_b) < 2)) {
@@ -187,11 +191,11 @@ check_b_contours_data <- function(sa, pir_lower, bound1, range1, bound2, range2,
   }
   
   if (!is.list(grid_specs) ||
-      !all(names(grid_specs) == c("num_x", "num_y", "num_z")) ||
-      !is.numeric(grid_specs$num_x) || !is.numeric(grid_specs$num_y) ||
-      !is.numeric(grid_specs$num_z) || length(grid_specs$num_x) != 1 ||
-      length(grid_specs$num_y) != 1 || length(grid_specs$num_z) != 1) {
-    stop("'grid_specs' must be list of 3 numbers: num_x, num_y, num_z")
+      !all(names(grid_specs) == c("N1", "N2", "N5")) ||
+      !is.numeric(grid_specs$N1) || !is.numeric(grid_specs$N2) ||
+      !is.numeric(grid_specs$N5) || length(grid_specs$N1) != 1 ||
+      length(grid_specs$N2) != 1 || length(grid_specs$N5) != 1) {
+    stop("'grid_specs' must be list of 3 numbers: N1, N2, N5")
   }
   
   if (any(unlist(grid_specs) < 2)) {
@@ -207,15 +211,16 @@ check_b_contours_data <- function(sa, pir_lower, bound1, range1, bound2, range2,
 check_r_contours_data <- function(sa, comparison_ind,
                                   iv_lines, grid_specs, eps) {
   
-  if (class(sa) != "sensana") {
+  if (!inherits(sa, "sensana")) {
     stop("'sa' must be a 'sensana' object.")
   }
   
-  if (!is.list(comparison_ind) ||
-      !all(names(comparison_ind) %in% colnames(sa$xp)) ||
-      !all(is.numeric(unlist(comparison_ind))) ||
-      !all(unlist(comparison_ind) > 0)) {
-    stop(paste0("'comparison_ind' must be a list, where each element ",
+  if (!is.null(comparison_ind) &&
+      (!is.list(comparison_ind) ||
+       !all(names(comparison_ind) %in% colnames(sa$xp)) ||
+       !all(is.numeric(unlist(comparison_ind))) ||
+       !all(unlist(comparison_ind) > 0))) {
+    stop(paste0("'comparison_ind' must be NULL or a list, where each element ",
                 "has the name of a conditionally independent covariate ",
                 "and contains a (vector of) positive number(s)."))
   }
@@ -225,11 +230,11 @@ check_r_contours_data <- function(sa, comparison_ind,
   }
   
   if (!is.list(grid_specs) ||
-      !all(names(grid_specs) == c("num_x", "num_y", "num_z")) ||
-      !is.numeric(grid_specs$num_x) || !is.numeric(grid_specs$num_y) ||
-      !is.numeric(grid_specs$num_z) || length(grid_specs$num_x) != 1 ||
-      length(grid_specs$num_y) != 1 || length(grid_specs$num_z) != 1) {
-    stop("'grid_specs' must be list of 3 numbers: num_x, num_y, num_z")
+      !all(names(grid_specs) == c("N1", "N2", "N5")) ||
+      !is.numeric(grid_specs$N1) || !is.numeric(grid_specs$N2) ||
+      !is.numeric(grid_specs$N5) || length(grid_specs$N1) != 1 ||
+      length(grid_specs$N2) != 1 || length(grid_specs$N5) != 1) {
+    stop("'grid_specs' must be list of 3 numbers: N1, N2, N5")
   }
   
   if (any(unlist(grid_specs) < 2)) {
