@@ -1,8 +1,7 @@
 #include <Rcpp.h>
 using namespace Rcpp;
 
-// All the h/g-functions
-
+// Helper functions for the grid search algorithm
 double finv(double f) {
   return f / sqrt(1 + pow(f,2));
 }
@@ -34,7 +33,8 @@ double g7(double p2, double p5, double c6) {
 }
 
 
-// helper method to keep main method cleaner
+// subroutine in the grid search algorithm
+// tests if p2 is feasible given the constraints on Z <-> U and Z -> Y
 bool check_p2(double p1, double p2, double c6,
               NumericVector c7, NumericVector b7,
               double lb_p5, double ub_p5,
@@ -89,8 +89,6 @@ List grid_search(int N1, int N2, int N5, bool full_grid,
                  NumericVector c7,
                  NumericVector b7) {
   
-  //Rcpp::Rcout << "Hello from C++! Hello from C++! Hello from C++!" << std::endl;
-  
   int p2_mat_dim2 = (full_grid) ? N2 : 2;
   NumericVector p1_seq(N1);
   NumericMatrix p2_mat(N1, p2_mat_dim2);
@@ -135,7 +133,6 @@ List grid_search(int N1, int N2, int N5, bool full_grid,
       double lb_p5 = g5(p1_seq[i], lb_p6s, c5);
       double ub_p5 = g5(p1_seq[i], ub_p6s, c5);
       
-      // computational efficiency for !full_grid case
       if (full_grid) {
         for (int k = 0; k < N2; k++) {
           double p2 = lb_p2 + k * (ub_p2 - lb_p2) / (N2 - 1);
@@ -143,7 +140,8 @@ List grid_search(int N1, int N2, int N5, bool full_grid,
                                    lb_p5, ub_p5, lb_p7s, ub_p7s, N5);
           p2_mat(i, k) = p2_valid ? p2 : NA_REAL;
         }
-      } else {
+      } else { // potentially more efficient in the !full_grid case:
+        // -> we only need the smallest and largest possible p2 value
         bool found_lower = false;
         for (int k = 0; k < N2 && !found_lower; k++) {
           double p2 = lb_p2 + k * (ub_p2 - lb_p2) / (N2 - 1);

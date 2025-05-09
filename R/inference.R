@@ -13,11 +13,12 @@ compute_eval_param <- function(y, d, xt, xp, z) {
 }
 
 
-## Is there a smarter way to handle the data hand-over??
 
 ## Solving the optimization problem with the observations data[indices,]
+## written in this way to facilitate using the boot-package
 one_opt <- function(data, indices, bounds, grid_specs, indep_x, dep_x, eps) {
-  ## data as matrix with labelled columns
+  ## Disentangling data to pass it on to the core methods
+  ## (data is a matrix with labelled columns)
   y <- data[indices, "y"]
   d <- data[indices, "d"]
   z <- if ("z" %in% colnames(data)) data[indices, "z"] else NULL
@@ -40,21 +41,54 @@ one_opt <- function(data, indices, bounds, grid_specs, indep_x, dep_x, eps) {
     xt <- data[indices, dep_x]
   }
 
-  ## Core of the method
+  ## Recomputing the bounds for the new indices
   bounds_ind <- recompute_bounds(y, d, xt, xp, z, bounds)
+  ## Computing a grid of feasible points
   grid_list <- feasible_grid(y, d, xt, xp, z, bounds_ind,
                              grid_specs, FALSE, eps)
+  
+  ## Evaluation of the objective/causal effect over the grid
   ep <- compute_eval_param(y, d, xt, xp, z)
   eval_mat <- eval_on_grid(grid_list$p1_seq, grid_list$p2_mat,
                            ep$beta_ols, ep$sd_y_xzd, ep$sd_d_xz)
-
-  ## Evaluating and reporting the results
+  
+  ## Computing the smallest and largest value
   ret <- if(all(is.na(eval_mat))) c(-Inf, Inf) else range(eval_mat, na.rm = TRUE)
   ret
 }
 
 
-## Computing the partially identified region (PIR)
+#' Compute the Partially Identified Range (PIR)
+#'
+#' Computes the PIR by finding the smallest and largest possible value of the
+#' causal effect according to the specified sensitivity model. To solve this
+#' optimization problem a tailored grid search algorithm is used.
+#' 
+#'
+#' @param sa An object of the class \code{sensana}.
+#' @param grid_specs A named list of the three numeric values `N1`, `N2` and `N5` specifying
+#'   the number of points considered in the grid search for each of the three dimensions.
+#' @param eps A small numeric number to bound sensitivity parameters away from `1`
+#'   and `-1`. Default is \code{0.001}.
+#'
+#' @return A numeric vector of length `2`, the estimated partially identified range.
+#'
+#' @examples
+#' set.seed(123)
+#' u <- rnorm(20)
+#' xt <- -0.25*u + rnorm(20)
+#' xp <- 0.5 * xt + rnorm(20)
+#' z <- 0.25 * xt - xp + u + rnorm(20)
+#' d <- 0.5 * xt + 0.5 * xp + u + 2*z + rnorm(20)
+#' y <- d + 2*xp - xt + z + u + rnorm(20)
+#' sa <- sensana(y = y, d = d, x = data.frame(xt = xt, xp = xp), z = z,
+#'               dep_x = "xt", indep_x = "xp", alpha = 0.05, quantile = "t")
+#'
+#' sa <- add_bound(sa, arrow = "UD", kind = "direct", lb = -0.3, ub = 0.3)
+#' sa <- add_bound(sa, arrow = "ZY", kind = "direct", lb = -0.3, ub = 0.3)
+#'                 
+#' pir_res <- pir(sa, grid_specs = list(N1 = 100, N2 = 100, N5 = 100))
+#'
 #' @export
 pir <- function(sa, grid_specs = list(N1 = 100, N2 = 100, N5 = 100),
                 eps = 0.001) {
@@ -79,25 +113,85 @@ pir <- function(sa, grid_specs = list(N1 = 100, N2 = 100, N5 = 100),
 
 
 
-## Computing a (1-alpha) sensitivity interval via the bootstrap
+
+
+#' Compute Sensitivity Intervals
+#' 
+#' @description 
+#' Computes a `1-alpha` sensitivity interval for the partially identified range
+#' via the bootstrap. Users can specify the bootstrap method(s) used for constructing
+#' the sensitivity interval.
+#' 
+#' 
+#' @details 
+#' Since the sensitivity model given by the user-specified bounds is data-dependent,
+#' it needs to be re-computed on every bootstrap sample. In cases where the resulting
+#' sensitivity model is empty, we can either discard such a bootstrap sample or set
+#' the estimated PIR to \eqn{(-\infty, \infty)}. In the returned data frame containing
+#' the sensitivity intervals, these 2 possibilities are indicated via `conservative = FALSE`
+#' and `conservative = TRUE`. We recommend using conservative sensitivity intervals.
+#'
+#' @param sa An object of the class \code{sensana}.
+#' @param alpha Significance level used to construct the sensitivity interval.
+#'   Default is \code{0.05} for a \eqn{95\%} sensitivity interval.
+#' @param boot_procedure A vector of or a single character string specifying
+#'   the bootstrap method(s) to construct the sensitivity interval. Accepted
+#'   values are \code{"perc"} (percentile), \code{"basic"} (basic), \code{"bca"}
+#'   (BCa), \code{"norm"} (normal approximation) and \code{"stud"} (studentized).
+#' @param boot_samples Integer; the number of bootstrap resamples. Default is \code{1000}.
+#' @param grid_specs A named list of the three numeric values `N1`, `N2` and `N5` specifying
+#'   the number of points considered in the grid search for each of the three dimensions.
+#' @param eps A small numeric number to bound sensitivity parameters away from `1`
+#'   and `-1`. Default is \code{0.001}.
+#' @param parallel A character string passed to \code{\link[boot]{boot}}
+#'   specifying the parallel processing backend. Options are \code{"no"},
+#'   \code{"multicore"}, or \code{"snow"}. Default is `"no"`.
+#' @param ncpus Integer number of CPU cores to use for parallel processing.
+#'   Passed to \code{\link[boot]{boot}}.   
+#'   
+#'   
+#'   
+#' @returns Object of the class `sensint`. This is a list
+#'  containing the following components:
+#'  \describe{
+#'  \item{sensint}{A data frame where each row contains one sensitivity interval.
+#'    The columns `sl` and `su` refer to the lower and upper end of the respective
+#'    sensitivity interval. The column `bootstrap` specifies the method used to
+#'    construct the interval. The column `conservative` indicates whether the
+#'    sensitivity interval is conservative or not (see details above).}
+#'  \item{alpha}{The significance level.}
+#'  \item{n_empty}{The number of bootstrap resamples where the sensitivity model
+#'    is empty.}
+#'  \item{boot_obj}{The `boot` object returned by the internal call to [boot::boot()].}
+#'  }
+#' 
+#'
+#' @examples
+#' set.seed(123)
+#' u <- rnorm(20)
+#' xt <- -0.25*u + rnorm(20)
+#' xp <- 0.5 * xt + rnorm(20)
+#' z <- 0.25 * xt - xp + u + rnorm(20)
+#' d <- 0.5 * xt + 0.5 * xp + u + 2*z + rnorm(20)
+#' y <- d + 2*xp - xt + z + u + rnorm(20)
+#' sa <- sensana(y = y, d = d, x = data.frame(xt = xt, xp = xp), z = z,
+#'               dep_x = "xt", indep_x = "xp", alpha = 0.05, quantile = "t")
+#'
+#' sa <- add_bound(sa, arrow = "UD", kind = "direct", lb = -0.3, ub = 0.3)
+#' sa <- add_bound(sa, arrow = "ZY", kind = "direct", lb = -0.3, ub = 0.3)
+#'                 
+#' si <- sensint(sa, alpha = 0.05, boot_procedure = c("perc", "bca"),
+#'               boot_samples = 5000)
+#' 
 #' @export
-sensint <- function(sa, alpha = 0.05, boot_procedure = c("perc", "basic"),
-                    boot_samples = 500,
+sensint <- function(sa, alpha = 0.05, boot_procedure = c("perc", "basic", "bca"),
+                    boot_samples = 1000,
                     grid_specs = list(N1 = 100, N2 = 100, N5 = 100),
                     eps = 0.001,
                     parallel = "no", ncpus = getOption("boot.ncpus", 1L)) {
 
   check_sensint(sa, alpha, boot_procedure, boot_samples,
                 grid_specs, eps, parallel, ncpus)
-  
-  ## list2env(sa, environment())
-  
-  
-  ## boot_procedure
-  
-  ## warning for bca
-  
-  ## how to do match.arg with possibly vector-valued input?
 
   data_mat <- cbind(sa$y, sa$d, sa$z, sa$xp, sa$xt)
   if (is.null(sa$z)) {
@@ -178,6 +272,32 @@ sensint <- function(sa, alpha = 0.05, boot_procedure = c("perc", "basic"),
 
 
 
+#' Print Method for `sensint` objects
+#'
+#' @param x An object of class \code{"sensint"}.
+#' @param digits The number of significant digits to display.
+#' @param ... Additional arguments passed to or from other methods (ignored here).
+#'
+#' @method print sensint
+#' @return Invisibly returns \code{x}, the original object.
+#' 
+#' @examples
+#' set.seed(123)
+#' u <- rnorm(20)
+#' xt <- -0.25*u + rnorm(20)
+#' xp <- 0.5 * xt + rnorm(20)
+#' z <- 0.25 * xt - xp + u + rnorm(20)
+#' d <- 0.5 * xt + 0.5 * xp + u + 2*z + rnorm(20)
+#' y <- d + 2*xp - xt + z + u + rnorm(20)
+#' sa <- sensana(y = y, d = d, x = data.frame(xt = xt, xp = xp), z = z,
+#'               dep_x = "xt", indep_x = "xp", alpha = 0.05, quantile = "t")
+#'
+#' sa <- add_bound(sa, arrow = "UD", kind = "direct", lb = -0.3, ub = 0.3)
+#' sa <- add_bound(sa, arrow = "ZY", kind = "direct", lb = -0.3, ub = 0.3)
+#'                 
+#' sensint_obj <- sensint(sa, alpha = 0.05)
+#' print(sensint_obj)
+#' 
 #' @export
 print.sensint <- function(x, digits = max(3L, getOption("digits") - 3L),...) {
   cat(round((1-x$alpha)*100, digits), "% Sensitivity Intervals:\n", sep = "")

@@ -46,6 +46,8 @@ check_sensana <- function(y, d, indep_x, dep_x, x, z, quantile, alpha) {
 }
 
 
+
+
 check_add_bound <- function(sa, arrow, kind, lb, ub, b, I, J,
                             name, print_warning) {
   
@@ -105,6 +107,8 @@ check_add_bound <- function(sa, arrow, kind, lb, ub, b, I, J,
 }
 
 
+
+
 check_pir <- function(sa, grid_specs, eps) {
   if (!inherits(sa, "sensana")) {
     stop("'sa' must be a 'sensana' object.")
@@ -128,6 +132,8 @@ check_pir <- function(sa, grid_specs, eps) {
 }
 
 
+
+
 check_sensint <- function(sa, alpha, boot_procedure, boot_samples,
                           grid_specs, eps, parallel, ncpus) {
   check_pir(sa, grid_specs, eps)
@@ -146,6 +152,8 @@ check_sensint <- function(sa, alpha, boot_procedure, boot_samples,
                 " taking the values: 'norm', 'basic', 'stud', 'perc', 'bca'."))
   }
 }
+
+
 
 
 check_b_contours_data <- function(sa, pir_lower, bound1, range1, bound2, range2,
@@ -206,6 +214,8 @@ check_b_contours_data <- function(sa, pir_lower, bound1, range1, bound2, range2,
     stop("'eps' must be a real-number within (0,0.1].")
   }
 }
+
+
 
 
 check_r_contours_data <- function(sa, comparison_ind,

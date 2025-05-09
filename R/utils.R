@@ -1,5 +1,5 @@
 
-## The data must be centred.
+## The data must be centered.
 
 r <- function(A, B, C = NULL) {
   if (!is.null(C)) {
