@@ -1,5 +1,6 @@
 
 test_that("pir(...) works", {
+  set.seed(2024)
   u <- rnorm(20)
   xt <- -0.25*u + rnorm(20)
   xp <- 0.5 * xt + rnorm(20)
@@ -44,6 +45,7 @@ test_that("pir(...) works", {
 
 
 test_that("Computing collapsing PIR correctly", {
+  set.seed(2024)
   u <- rnorm(20)
   x <- rnorm(20)
   d <- x + u
@@ -74,6 +76,7 @@ test_that("Computing collapsing PIR correctly", {
 
 
 test_that("sensint(...) works", {
+  set.seed(2024)
   u <- rnorm(20)
   xt <- -0.25*u + rnorm(20)
   xp <- 0.5 * xt + rnorm(20)

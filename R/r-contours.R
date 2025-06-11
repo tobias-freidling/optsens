@@ -264,7 +264,9 @@ r_contours_plot <- function(plist, val_interest, bw, n_breaks) {
   } else {
     pl <- pl + ggplot2::scale_fill_steps2(midpoint = val_interest,
                                           breaks = make_breaks,
-                                          aesthetics = c("fill", "colour"))
+                                          aesthetics = c("fill", "colour"),
+                                          low = scales::muted("blue"),
+                                          high = scales::muted("red"))
   }
   
   ## IV-lines
